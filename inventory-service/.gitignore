@@ -1,0 +1,74 @@
+# ===================================================================
+# --- Secrets & Environment Variables ---
+# ===================================================================
+# Ignore all .env files, as they contain secrets
+.env
+*.env
+.env.*
+
+!.env.sample
+
+
+# ===================================================================
+# --- Build Output & Logs ---
+# ===================================================================
+# Maven build output
+target/
+
+# Compiled Java class files
+*.class
+
+# Log files
+*.log
+logs/
+
+# Packaged archives
+*.jar
+*.war
+*.ear
+
+
+# ===================================================================
+# --- Maven Wrapper ---
+# ===================================================================
+.mvn/wrapper/maven-wrapper.jar
+
+
+# ===================================================================
+# --- IDE Files ---
+# ===================================================================
+
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+
+### STS / Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache
+
+### VS Code ###
+.vscode/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+
+# ===================================================================
+# --- OS-specific ---
+# ===================================================================
+# Mac
+.DS_Store
+
+# Windows
+Thumbs.db

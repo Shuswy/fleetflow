@@ -1,0 +1,168 @@
+version: '3.8'
+
+services:
+  # MySQL Database for the Order Service
+  order-db:
+    image: mysql:8.0
+    container_name: order-db
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${ORDER_MYSQL_DATABASE}
+      MYSQL_USER: ${ORDER_MYSQL_USER}
+      MYSQL_PASSWORD: ${ORDER_MYSQL_PASSWORD}
+    volumes:
+      - mysql-order-data:/var/lib/mysql
+
+  user-db:
+    image: mysql:8.0
+    container_name: user-db
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${USER_MYSQL_DATABASE}
+      MYSQL_USER: ${USER_MYSQL_USER}
+      MYSQL_PASSWORD: ${USER_MYSQL_PASSWORD}
+    volumes:
+      - mysql-user-data:/var/lib/mysql
+
+  org-db:
+    image: mysql:8.0
+    container_name: org-db
+    ports:
+      - "3308:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${ORGANIZATION_MYSQL_DATABASE}
+      MYSQL_USER: ${ORGANIZATION_MYSQL_USER}
+      MYSQL_PASSWORD: ${ORGANIZATION_MYSQL_PASSWORD}
+    volumes:
+      - mysql-org-data:/var/lib/mysql
+
+  inventory-db:
+    image: mysql:8.0
+    container_name: inventory-db
+    ports: [ "3309:3306" ]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${INVENTORY_MYSQL_DATABASE}
+      MYSQL_USER: ${INVENTORY_MYSQL_USER}
+      MYSQL_PASSWORD: ${INVENTORY_MYSQL_PASSWORD}
+    volumes:
+      - mysql-inventory-data:/var/lib/mysql
+
+  procurement-db:
+    image: mysql:8.0
+    container_name: procurement-db
+    ports: [ "3310:3306" ]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${PROCUREMENT_MYSQL_DATABASE}
+      MYSQL_USER: ${PROCUREMENT_MYSQL_USER}
+      MYSQL_PASSWORD: ${PROCUREMENT_MYSQL_PASSWORD}
+    volumes:
+      - mysql-procurement-data:/var/lib/mysql
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"   # Port for the Spring Boot app
+      - "15672:15672" # Port for the Management UI (access in browser)
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
+  # Order Service Application
+  order-service:
+    build:
+      context: ./order-service # Path to your order-service folder
+    container_name: order-service
+    environment:
+      # Database Connection
+      SPRING_DATASOURCE_URL: ${ORDER_SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${ORDER_SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${ORDER_SPRING_DATASOURCE_PASSWORD}
+      # RabbitMQ Connection
+      SPRING_RABBITMQ_HOST: ${SPRING_RABBITMQ_HOST}
+      SPRING_RABBITMQ_USERNAME: ${SPRING_RABBITMQ_USERNAME}
+      SPRING_RABBITMQ_PASSWORD: ${SPRING_RABBITMQ_PASSWORD}
+    depends_on:
+      - order-db
+      - rabbitmq
+
+  user-service:
+    build:
+      context: ./user-service
+    container_name: user-service
+    environment:
+      SPRING_DATASOURCE_URL: ${USER_SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${USER_SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+    depends_on:
+      - user-db
+
+  organization-service:
+    build:
+      context: ./organization-service
+    container_name: organization-service
+    environment:
+      SPRING_DATASOURCE_URL: ${ORGANIZATION_SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${ORGANIZATION_SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${ORGANIZATION_SPRING_DATASOURCE_PASSWORD}
+    depends_on:
+      - order-db
+
+  inventory-service:
+    build:
+      context: ./inventory-service
+    container_name: inventory-service
+    environment:
+      SPRING_DATASOURCE_URL: ${INVENTORY_SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${INVENTORY_SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${INVENTORY_SPRING_DATASOURCE_PASSWORD}
+      SPRING_RABBITMQ_HOST: ${SPRING_RABBITMQ_HOST}
+      SPRING_RABBITMQ_USERNAME: ${SPRING_RABBITMQ_USERNAME}
+      SPRING_RABBITMQ_PASSWORD: ${SPRING_RABBITMQ_PASSWORD}
+    depends_on:
+      - inventory-db
+      - rabbitmq
+
+  procurement-service:
+    build:
+      context: ./procurement-service
+    container_name: procurement-service
+    environment:
+      SPRING_DATASOURCE_URL: ${PROCUREMENT_SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${PROCUREMENT_SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${PROCUREMENT_SPRING_DATASOURCE_PASSWORD}
+    depends_on:
+      - procurement-db
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - order-service
+      - user-service
+      - organization-service
+      - inventory-service
+      - procurement-service
+
+# Define the named volumes
+volumes:
+  mysql-order-data:
+  rabbitmq-data:
+  mysql-user-data:
+  mysql-org-data:
+  mysql-inventory-data:
+  mysql-procurement-data:
