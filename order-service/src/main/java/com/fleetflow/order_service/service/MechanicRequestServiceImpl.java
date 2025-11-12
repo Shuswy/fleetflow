@@ -6,6 +6,8 @@ import com.fleetflow.order_service.model.MechanicRequest;
 import com.fleetflow.order_service.model.RequestLineItem;
 import com.fleetflow.order_service.model.RequestStatus;
 import com.fleetflow.order_service.repository.MechanicRequestRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,8 @@ public class MechanicRequestServiceImpl implements MechanicRequestService {
     private final MechanicRequestRepository requestRepository;
     private final WebClient.Builder webClientBuilder;
     private final RabbitTemplate rabbitTemplate;
+
+    private static final Logger log = LoggerFactory.getLogger(MechanicRequestServiceImpl.class);
 
     private final String ORGANIZATION_SERVICE_URL = "http://organization-service";
 
@@ -121,5 +125,37 @@ public class MechanicRequestServiceImpl implements MechanicRequestService {
                 request.getCreatedAt(),
                 request.getLastUpdatedAt()
         );
+    }
+
+    @Override
+    @Transactional
+    public void updateRequestStatus(StockUpdateEvent event) {
+        log.info("Received stock update for request ID: {}", event.mechanicRequestId());
+
+        MechanicRequest request = requestRepository.findById(event.mechanicRequestId())
+                .orElse(null);
+
+        if (request == null) {
+            log.error("Received stock update for non-existent request ID: {}", event.mechanicRequestId());
+            return;
+        }
+
+        switch (event.status()) {
+            case RESERVED:
+                request.setStatus(RequestStatus.APPROVED);
+                log.info("Request {} APPROVED", request.getId());
+                break;
+            case BACKORDERED:
+                request.setStatus(RequestStatus.BACKORDERED); // <-- NEW LOGIC
+                log.warn("Request {} BACKORDERED. Logistician must procure.", request.getId());
+                break;
+
+            case REJECTED_INVALID_PART:
+                request.setStatus(RequestStatus.CANCELLED);
+                log.error("Request {} CANCELLED due to: {}", request.getId(), event.notes());
+                break;
+        }
+
+        requestRepository.save(request);
     }
 }

@@ -1,4 +1,4 @@
-package com.fleetflow.inventory_service.dto;
+package com.fleetflow.order_service.dto;
 
 public record StockUpdateEvent(
         Long mechanicRequestId,

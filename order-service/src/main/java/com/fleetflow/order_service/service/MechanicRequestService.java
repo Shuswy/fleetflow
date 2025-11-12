@@ -2,6 +2,7 @@ package com.fleetflow.order_service.service;
 
 import com.fleetflow.order_service.dto.CreateMechanicRequestDTO;
 import com.fleetflow.order_service.dto.MechanicRequestResponseDTO;
+import com.fleetflow.order_service.dto.StockUpdateEvent;
 
 import java.util.List;
 
@@ -15,4 +16,6 @@ public interface MechanicRequestService {
     List<MechanicRequestResponseDTO> findAllByMechanicId(Long mechanicId);
 
     MechanicRequestResponseDTO findByIdAndMechanicId(Long requestId, Long mechanicId);
+
+    void updateRequestStatus(StockUpdateEvent event);
 }

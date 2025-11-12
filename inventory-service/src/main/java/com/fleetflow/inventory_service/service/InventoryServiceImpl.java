@@ -47,8 +47,12 @@ public class InventoryServiceImpl implements InventoryService{
             var reply = new StockUpdateEvent(mechanicRequestId, StockUpdateEvent.StockUpdateStatus.RESERVED, "All parts reserved.");
             sendReply(reply);
 
-        } catch (Exception e) {
-            var reply = new StockUpdateEvent(mechanicRequestId, StockUpdateEvent.StockUpdateStatus.REJECTED_OUT_OF_STOCK, e.getMessage());
+        } catch (InsufficientStockException e) {
+            var reply = new StockUpdateEvent(mechanicRequestId, StockUpdateEvent.StockUpdateStatus.BACKORDERED, e.getMessage());
+            sendReply(reply);
+
+        } catch (PartNotFoundException e) {
+            var reply = new StockUpdateEvent(mechanicRequestId, StockUpdateEvent.StockUpdateStatus.REJECTED_INVALID_PART, e.getMessage());
             sendReply(reply);
         }
     }
@@ -59,5 +63,13 @@ public class InventoryServiceImpl implements InventoryService{
                 RabbitMQConfig.REPLY_ROUTING_KEY,
                 reply
         );
+    }
+
+    private static class PartNotFoundException extends RuntimeException {
+        public PartNotFoundException(String message) { super(message); }
+    }
+
+    private static class InsufficientStockException extends RuntimeException {
+        public InsufficientStockException(String message) { super(message); }
     }
 }

@@ -14,6 +14,8 @@ public class RabbitMQConfig {
     public static final String QUEUE_NAME = "inventory_stock_check_queue";
     public static final String ROUTING_KEY = "order.created";
 
+    public static final String INCOMMING_QUEUE = "order_status_update_queue";
+
     @Bean
     public TopicExchange exchange() {
         return new TopicExchange(EXCHANGE_NAME);
@@ -27,5 +29,10 @@ public class RabbitMQConfig {
     @Bean
     public Binding binding(Queue queue, TopicExchange exchange) {
         return BindingBuilder.bind(queue).to(exchange).with(ROUTING_KEY);
+    }
+
+    @Bean
+    public Queue incomingQueue() {
+        return new Queue(INCOMMING_QUEUE);
     }
 }
