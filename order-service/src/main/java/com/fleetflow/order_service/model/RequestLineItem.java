@@ -21,6 +21,17 @@ public class RequestLineItem {
     @Column(nullable = false)
     private Integer quantityRequested;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private RequestStatus status;
+
+    @PrePersist
+    private void onPrePersist() {
+        if (this.status == null) {
+            this.status = RequestStatus.PENDING;
+        }
+    }
+
     public RequestLineItem() {
 
     }
@@ -57,6 +68,10 @@ public class RequestLineItem {
         this.quantityRequested = quantityRequested;
     }
 
+    public RequestStatus getStatus() { return status; }
+
+    public void setStatus(RequestStatus status) { this.status = status; }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -77,6 +92,7 @@ public class RequestLineItem {
                 ", requestId=" + (mechanicRequest != null ? mechanicRequest.getId() : "null") +
                 ", partId=" + partId +
                 ", quantityRequested=" + quantityRequested +
+                ", status=" + status +
                 '}';
     }
 }

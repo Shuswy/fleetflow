@@ -8,6 +8,7 @@ public record RequestCreatedEvent(
         List<RequestLineItem> lineItems
 ) {
     public record RequestLineItem(
+            Long lineItemId,
             Long partId,
             Integer quantity
     ) {}

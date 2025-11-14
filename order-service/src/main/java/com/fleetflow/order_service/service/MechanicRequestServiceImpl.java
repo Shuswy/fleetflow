@@ -15,6 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -78,7 +81,7 @@ public class MechanicRequestServiceImpl implements MechanicRequestService {
         MechanicRequest savedRequest = requestRepository.save(request);
 
         List<RequestCreatedEvent.RequestLineItem> eventLineItems = savedRequest.getLineItems().stream()
-                .map(item -> new RequestCreatedEvent.RequestLineItem(item.getPartId(), item.getQuantityRequested()))
+                .map(item -> new RequestCreatedEvent.RequestLineItem(item.getId(), item.getPartId(), item.getQuantityRequested()))
                 .collect(Collectors.toList());
 
         RequestCreatedEvent event = new RequestCreatedEvent(
@@ -112,6 +115,7 @@ public class MechanicRequestServiceImpl implements MechanicRequestService {
                         item.getId(),
                         item.getPartId(),
                         item.getQuantityRequested()
+                        // TODO: Add item.getStatus().name() to RequestLineItemResponseDTO
                 ))
                 .collect(Collectors.toList());
 
@@ -140,22 +144,43 @@ public class MechanicRequestServiceImpl implements MechanicRequestService {
             return;
         }
 
-        switch (event.status()) {
-            case RESERVED:
-                request.setStatus(RequestStatus.APPROVED);
-                log.info("Request {} APPROVED", request.getId());
-                break;
-            case BACKORDERED:
-                request.setStatus(RequestStatus.BACKORDERED); // <-- NEW LOGIC
-                log.warn("Request {} BACKORDERED. Logistician must procure.", request.getId());
-                break;
+        Map<Long, RequestLineItem> lineItemMap = request.getLineItems().stream()
+                .collect(Collectors.toMap(RequestLineItem::getId, Function.identity()));
 
-            case REJECTED_INVALID_PART:
-                request.setStatus(RequestStatus.CANCELLED);
-                log.error("Request {} CANCELLED due to: {}", request.getId(), event.notes());
-                break;
+        for (StockUpdateEvent.LineItemStatusUpdate itemUpdate : event.itemUpdates()) {
+            RequestLineItem lineItem = lineItemMap.get(itemUpdate.lineItemId());
+            if (lineItem != null) {
+                switch (itemUpdate.status()) {
+                    case RESERVED:
+                        lineItem.setStatus(RequestStatus.APPROVED);
+                        log.info("Request {} APPROVED", request.getId());
+                        break;
+                    case BACKORDERED:
+                        lineItem.setStatus(RequestStatus.BACKORDERED);
+                        log.warn("Request {} BACKORDERED. Logistician must procure.", request.getId());
+                        break;
+                    case REJECTED_INVALID_PART:
+                        lineItem.setStatus(RequestStatus.CANCELLED);
+                        log.error("Request {} CANCELLED due to: {}", request.getId());
+                        break;
+                }
+            } else {
+                log.warn("Received status for non-existent line item ID: {}", itemUpdate.lineItemId());
+            }
+        }
+        Set<RequestStatus> allItemsStatuses = request.getLineItems().stream()
+                .map(RequestLineItem::getStatus)
+                .collect(Collectors.toSet());
+
+        if (allItemsStatuses.contains(RequestStatus.PENDING)) {
+            request.setStatus(RequestStatus.PENDING);
+        } else if (allItemsStatuses.size() == 1) {
+            request.setStatus(allItemsStatuses.iterator().next());
+        } else {
+            request.setStatus(RequestStatus.PARTIALLY_APPROVED);
         }
 
+        log.info("Updating parent request {} status to {}", request.getId(), request.getStatus());
         requestRepository.save(request);
     }
 }
