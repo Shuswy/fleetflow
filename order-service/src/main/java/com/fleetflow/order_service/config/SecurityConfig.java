@@ -29,6 +29,7 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(authz -> authz
+                        .requestMatchers("/api/logistics/**").hasAuthority("ROLE_LOGISTICIAN")
                         .requestMatchers("/api/requests/**").hasAuthority("ROLE_MECHANIC")
 
                         .anyRequest().authenticated()

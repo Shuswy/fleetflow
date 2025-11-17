@@ -1,0 +1,2 @@
+ALTER TABLE request_line_items
+ADD COLUMN status VARCHAR(50) NOT NULL DEFAULT 'PENDING';

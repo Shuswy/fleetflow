@@ -114,7 +114,8 @@ public class MechanicRequestServiceImpl implements MechanicRequestService {
                 .map(item -> new RequestLineItemResponseDTO(
                         item.getId(),
                         item.getPartId(),
-                        item.getQuantityRequested()
+                        item.getQuantityRequested(),
+                        item.getStatus().name()
                         // TODO: Add item.getStatus().name() to RequestLineItemResponseDTO
                 ))
                 .collect(Collectors.toList());
@@ -182,5 +183,61 @@ public class MechanicRequestServiceImpl implements MechanicRequestService {
 
         log.info("Updating parent request {} status to {}", request.getId(), request.getStatus());
         requestRepository.save(request);
+    }
+
+    @Override
+    public List<MechanicRequestResponseDTO> findRequestsByStatus(RequestStatus status) {
+        log.info("Fetching all requests with status: {}", status);
+        return requestRepository.findAllByStatus(status).stream()
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<MechanicRequestResponseDTO> findRequestsByLineItemStatus(RequestStatus status) {
+        log.info("Fetching all requests containing line item status: {}", status);
+        return requestRepository.findAllWithLineItemStatus(status).stream()
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public MechanicRequestResponseDTO shipApprovedItems(Long requestId) {
+        log.info("Shipping approved items for request ID: {}", requestId);
+
+        MechanicRequest request = requestRepository.findById(requestId)
+                .orElseThrow(() -> new RuntimeException("Request not found: " + requestId));
+
+        boolean itemsWereShipped = false;
+
+        for (RequestLineItem item : request.getLineItems()) {
+            if (item.getStatus() == RequestStatus.APPROVED) {
+                item.setStatus(RequestStatus.SHIPPED);
+                itemsWereShipped = true;
+            }
+        }
+
+        if (!itemsWereShipped) {
+            log.warn("No items in 'APPROVED' status to ship for request ID: {}", requestId);
+            throw new RuntimeException("No approved items to ship for this order.");
+        }
+
+        Set<RequestStatus> allItemStatuses = request.getLineItems().stream()
+                .map(RequestLineItem::getStatus)
+                .collect(Collectors.toSet());
+
+        if (allItemStatuses.stream().allMatch(s -> s == RequestStatus.SHIPPED || s == RequestStatus.COMPLETED)) {
+            request.setStatus(RequestStatus.SHIPPED);
+        } else if (allItemStatuses.contains(RequestStatus.BACKORDERED)) {
+            request.setStatus(RequestStatus.SHIPPED_PARTIALLY);
+        } else {
+            request.setStatus(RequestStatus.SHIPPED);
+        }
+
+        MechanicRequest savedRequest = requestRepository.save(request);
+        log.info("Request ID: {} status updated to {}", savedRequest.getId(), savedRequest.getStatus());
+
+        return mapToResponseDTO(savedRequest);
     }
 }
